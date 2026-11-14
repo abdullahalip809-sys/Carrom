@@ -1,0 +1,62 @@
+name: Build APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Files ko sahi jagah rakho
+        run: |
+          mkdir -p lib
+          for f in main*.dart; do if [ -f "$f" ]; then mv "$f" lib/main.dart; fi; done
+          for f in ads*.dart; do if [ -f "$f" ]; then mv "$f" lib/ads.dart; fi; done
+          for f in pubspec*.yaml; do if [ -f "$f" ] && [ "$f" != "pubspec.yaml" ]; then mv "$f" pubspec.yaml; fi; done
+          ls -R lib pubspec.yaml
+
+      - name: Android project banao
+        run: |
+          mkdir -p /tmp/bak
+          cp -r lib /tmp/bak/lib
+          cp pubspec.yaml /tmp/bak/pubspec.yaml
+          flutter create --platforms=android --project-name carrom_game --org com.carrom.game .
+          rm -rf lib test
+          cp -r /tmp/bak/lib lib
+          cp /tmp/bak/pubspec.yaml pubspec.yaml
+
+      - name: AdMob App ID, internet permission, minSdk
+        run: |
+          M=android/app/src/main/AndroidManifest.xml
+          sed -i 's#<application#<uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
+          sed -i 's#</application>#    <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-2742278117330941~1060446479"/>\n    </application>#' $M
+          sed -i 's/android:label="[^"]*"/android:label="Carrom"/' $M
+          for f in android/app/build.gradle android/app/build.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$f"
+            fi
+          done
+          cat $M
+
+      - name: APK banao
+        run: |
+          flutter pub get
+          flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: carrom-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
