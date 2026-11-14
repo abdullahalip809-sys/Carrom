@@ -48,8 +48,17 @@ jobs:
           for f in android/app/build.gradle android/app/build.gradle.kts; do
             if [ -f "$f" ]; then
               sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 23/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/' "$f"
+              sed -i 's/compileSdk = flutter.compileSdkVersion/compileSdk = 35/; s/compileSdkVersion flutter.compileSdkVersion/compileSdkVersion 35/' "$f"
             fi
           done
+          for f in android/settings.gradle android/settings.gradle.kts; do
+            if [ -f "$f" ]; then
+              sed -i -E 's/(com\.android\.application"\)? version ")[0-9.]+"/\18.5.2"/' "$f"
+              grep -n "com.android.application" "$f"
+            fi
+          done
+          sed -i -E 's#gradle-[0-9.]+-(all|bin)\.zip#gradle-8.7-all.zip#' android/gradle/wrapper/gradle-wrapper.properties
+          cat android/gradle/wrapper/gradle-wrapper.properties
           cat $M
 
       - name: APK banao
